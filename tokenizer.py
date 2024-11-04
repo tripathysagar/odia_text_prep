@@ -1,8 +1,8 @@
 import regex as re
 from typing import List, Tuple
 from functools import lru_cache
-from tokenizers import Tokenizer, models, trainers, pre_tokenizers, decoders, normalizers, processors
-from tokenizers.normalizers import NFKD, StripAccents
+from tokenizers import Tokenizer, models, trainers, pre_tokenizers, decoders, normalizers, processors, Regex
+from tokenizers.normalizers import NFKD, Replace
 from tokenizers.pre_tokenizers import UnicodeScripts, Whitespace, ByteLevel
 
 class Odia:
@@ -52,7 +52,7 @@ class Odia:
         """
         Get a set of all valid Odia characters. without the complex characters.
         """
-        return tuple(j for i in list(reversed(self.odia_chars.keys())) if i != 'complex_char' for j in self.get_chars(i))
+        return tuple(j for i in list(reversed(self.odia_chars.keys())) if i not in[ 'complex_char']  for j in self.get_chars(i))
 
 
     def get_chars(self, category: str) -> List[str]:
@@ -70,8 +70,7 @@ class Odia:
         Match Odia text using the generated pattern.
         """
         pattern = re.compile(self.generate_pattern())
-        return pattern.findall(text)
-    
+        return pattern.findall(text)    
 od = Odia()
 
 
@@ -94,27 +93,42 @@ tokenizer = Tokenizer(models.BPE(vocab=init_vocab,
                                  unk_token="[UNK]",
                                  ))
 
-tokenizer.normalizer = normalizers.Sequence([NFKD(), normalizers.Replace(r'\s+', ' '),])
+tokenizer.normalizer = normalizers.Sequence([
+    Replace(Regex(r'\b[A-Za-z]+\b'), ' [ENG]'),
+    NFKD(), 
+    Replace(r'\s+', ' '),
+])
+                                             
 tokenizer.pre_tokenizer = pre_tokenizers.Sequence([ ByteLevel( )])
 #tokenizer.post_processor = processors.ByteLevel()
 tokenizer.decoder = decoders.ByteLevel()
 
 trainer = trainers.BpeTrainer(
         vocab_size=50_304,
-        special_tokens=["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]", "<|endoftext|>"],
+        special_tokens=["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]", "<|endoftext|>", "[ENG]"],
         show_progress=True,
-        min_frequency=2,
-        #initial_alphabet=list(od.get_all_chars()),
+        min_frequency=1,
+        initial_alphabet=list(od.get_all_chars()),
         )
 
 files = ["wikipedia/odia_wiki_full/train.txt", "wikipedia/odia_wiki_full/valid.txt"]
 
 
-def file_iter():
+def file_iter(chunk_size=1000):
     for path in files:
         with open(path, "rt") as f:
+            chunk = []  # Initialize a list to store a chunk of lines
             for line in f:
-                yield line
+                chunk.append(line.rstrip())  # Append each line to the chunk, stripping trailing newline
+                
+                # When the chunk reaches the specified size, yield it and reset for the next chunk
+                if len(chunk) == chunk_size:
+                    yield chunk
+                    chunk = []  # Reset chunk for the next batch
+            
+            # Yield any remaining lines if they don't fill up a complete chunk
+            if chunk:
+                yield chunk
 
 tokenizer.train_from_iterator(file_iter(), trainer=trainer)
 
