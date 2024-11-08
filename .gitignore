@@ -1,4 +1,8 @@
 odia_wiki.csv
+output2.csv
+output5.csv
+output10.csv
+article.csv
 
 # Byte-compiled / optimized / DLL files
 *.log
