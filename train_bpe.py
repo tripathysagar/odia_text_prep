@@ -1,15 +1,10 @@
 import os
-from datasets import load_dataset
-from tokenizers import Regex, Tokenizer, models, trainers, pre_tokenizers, decoders, normalizers, processors, Regex
-from tokenizers.normalizers import NFKD, Replace, NFD, NFKC
-from tokenizers.pre_tokenizers import UnicodeScripts, Whitespace, ByteLevel, Split, WhitespaceSplit
-from tokenizers.decoders import ByteLevel
-
 # Set environment variables to limit threading
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
-os.environ["OMP_NUM_THREADS"] = "5"
-os.environ["MKL_NUM_THREADS"] = "5"
+os.environ["OMP_NUM_THREADS"] = "3"
+os.environ["MKL_NUM_THREADS"] = "3"
 
+from datasets import load_dataset
 dataset = load_dataset("OdiaGenAIdata/pre_train_odia_data_processed")
 
 if 'source' in dataset['train'].column_names:
@@ -20,10 +15,15 @@ def batch_iterator(batch_size=1000):
     for batch in dataset["train"].select_columns(["text"]).iter(batch_size=batch_size):
         yield batch["text"]
 
+from tokenizers import Regex, Tokenizer, models, trainers, pre_tokenizers, decoders, normalizers, processors, Regex
+from tokenizers.normalizers import NFKD, Replace, NFD, NFKC
+from tokenizers.pre_tokenizers import UnicodeScripts, Whitespace, ByteLevel, Split, WhitespaceSplit
+from tokenizers.decoders import ByteLevel
 
 tokenizer = Tokenizer(models.BPE(fuse_unk = True, unk_token="[UNK]"))
+# \u0964\u0965\u2018\u2019\u201C\u201D -> ।॥‘’“”
 # For viram punctuation, use the generic Indic 0964 and 0965. https://www.unicode.org/charts/PDF/U0B00.pdf
-odia_and_english_regex = r'[^\u0000-\u00FF\u0B00-\u0B7F\u0964-\u0965]'  # Matches characters outside English and Odia
+odia_and_english_regex = r'[^\u0000-\u00FF\u0B00-\u0B7F\u0964\u0965\u2018\u2019\u201C\u201D]'  # Matches characters outside English and Odia
 
 tokenizer.normalizer = normalizers.Sequence([
     #Replace(r'\u200D', ''),  # Removes Zero Width Joiner
