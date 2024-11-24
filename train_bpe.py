@@ -49,4 +49,4 @@ trainer = trainers.BpeTrainer(
 
 tokenizer.train_from_iterator(batch_iterator(50), trainer=trainer,  length=len(dataset['train']))
 
-tokenizer.save('tokenizer_bpe.json')
+tokenizer.save('tokenizer_bpe_1.json')
